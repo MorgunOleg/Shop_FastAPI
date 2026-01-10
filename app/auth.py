@@ -90,19 +90,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme),
     return user
 
 
-async def get_current_admin(current_user: UserModel = Depends(get_current_user)):
+class RoleChecker:
     """
-    Проверяет, что пользователь имеет роль 'admin'.
+    Проверяет, что пользователь имеет заданную роль.
     """
-    if current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can perform this action")
-    return current_user
+    def __init__(self, allowed_roles: list[str]):
+        self.allowed_roles = allowed_roles
 
+    async def __call__(self, current_user: UserModel = Depends(get_current_user)):
+        if current_user.role not in self.allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Action permitted only for: {', '.join(self.allowed_roles)}"
+            )
+        return current_user
 
-async def get_current_seller(current_user: UserModel = Depends(get_current_user)):
-    """
-    Проверяет, что пользователь имеет роль 'seller'.
-    """
-    if current_user.role != "seller":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only sellers can perform this action")
-    return current_user
+# Наборы ролей
+allow_admin = RoleChecker(["admin"])
+allow_seller = RoleChecker(["seller"])
+allow_buyer = RoleChecker(["buyer"])
+allow_buyer_and_admin = RoleChecker(["buyer", "admin"])

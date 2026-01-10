@@ -3,10 +3,12 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.users import User as UserModel
-from app.auth import get_current_seller
+from app.auth import allow_seller
 from app.models.products import Product as ProductModel
 from app.models.categories import Category as CategoryModel
+from app.models.reviews import Review as ReviewModel
 from app.schemas import Product as ProductSchema, ProductCreate
+from app.schemas import Review as ReviewSchema
 from app.db_depends import get_async_db
 
 # Создаём маршрутизатор для товаров
@@ -79,7 +81,7 @@ async def get_all_products(db: AsyncSession = Depends(get_async_db)):
 async def create_product(
         product: ProductCreate,
         db: AsyncSession = Depends(get_async_db),
-        current_user: UserModel = Depends(get_current_seller)
+        current_user: UserModel = Depends(allow_seller)
 ):
     """
     Создаёт новый товар, привязанный к текущему продавцу (только для 'seller').
@@ -101,7 +103,7 @@ async def update_product(
         product_id: int,
         product: ProductCreate,
         db: AsyncSession = Depends(get_async_db),
-        current_user: UserModel = Depends(get_current_seller)
+        current_user: UserModel = Depends(allow_seller)
 ):
     """
     Обновляет товар, если он принадлежит текущему продавцу (только для 'seller').
@@ -133,7 +135,7 @@ async def update_product(
 async def delete_product(
         product_id: int,
         db: AsyncSession = Depends(get_async_db),
-        current_user: UserModel = Depends(get_current_seller)
+        current_user: UserModel = Depends(allow_seller)
 ):
     """
     Выполняет мягкое удаление товара, если он принадлежит текущему продавцу (только для 'seller').
@@ -153,3 +155,36 @@ async def delete_product(
     await db.commit()
     await db.refresh(product)  # Для возврата is_active = False
     return product
+
+
+@router.get("/{product_id}/reviews/", response_model=list[ReviewSchema])
+async def get_review(product_id: int, db: AsyncSession = Depends(get_async_db)):
+    """
+    Получение отзывов о конкретном товаре по его ID.
+    """
+    # Проверяем, существует ли активный товар
+    product_result = await db.scalars(
+        select(ProductModel).where(ProductModel.id == product_id,
+                                   ProductModel.is_active == True)
+    )
+    product = product_result.first()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Product not found or inactive")
+
+    # Проверяем, существует ли активная категория
+    category_result = await db.scalars(
+        select(CategoryModel).where(CategoryModel.id == product.category_id,
+                                    CategoryModel.is_active == True)
+    )
+    category = category_result.first()
+    if not category:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Category not found or inactive")
+
+    # Возвращаем список активных отзывов
+    result = await db.scalars(
+        select(ReviewModel).where(ReviewModel.product_id == product_id,
+                                  ReviewModel.is_active == True)
+    )
+    return result.all()

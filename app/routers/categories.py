@@ -3,7 +3,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.users import User as UserModel
-from app.auth import get_current_admin
+from app.auth import allow_admin
 from app.models.categories import Category as CategoryModel
 from app.schemas import Category as CategorySchema, CategoryCreate
 from app.db_depends import get_async_db
@@ -29,7 +29,7 @@ async def get_all_categories(db: AsyncSession = Depends(get_async_db)):
 async def create_category(
         category: CategoryCreate,
         db: AsyncSession = Depends(get_async_db),
-        current_user: UserModel = Depends(get_current_admin)
+        current_user: UserModel = Depends(allow_admin)
 ):
     """
     Создаёт новую категорию (только для 'admin').
@@ -55,7 +55,7 @@ async def update_category(
         category_id: int,
         category: CategoryCreate,
         db: AsyncSession = Depends(get_async_db),
-        current_user: UserModel = Depends(get_current_admin)
+        current_user: UserModel = Depends(allow_admin)
 ):
     """
     Обновляет категорию по её ID (только для 'admin').
@@ -94,7 +94,7 @@ async def update_category(
 async def delete_category(
         category_id: int,
         db: AsyncSession = Depends(get_async_db),
-        current_user: UserModel = Depends(get_current_admin)
+        current_user: UserModel = Depends(allow_admin)
 ):
     """
     Логически удаляет категорию по её ID, устанавливая is_active=False (только для 'admin').
