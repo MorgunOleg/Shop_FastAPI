@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_serializer
 from decimal import Decimal
 from datetime import datetime, timezone
 
@@ -55,6 +55,13 @@ class Product(BaseModel):
     rating: float = Field(..., description="Средний рейтинг")
     category_id: int = Field(..., description="ID категории")
     is_active: bool = Field(..., description="Активность товара")
+    created_at: datetime = Field(..., description="Дата и время создания записи о товаре")
+    updated_at: datetime = Field(..., description="Дата и время обновления записи о товаре")
+
+    # Приведение даты и времени в читаемый формат
+    @field_serializer("created_at", "updated_at")
+    def serialize_dt(self, dt: datetime) -> str:
+        return dt.strftime("%d-%m-%Y %H:%M")
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -97,3 +104,15 @@ class Review(BaseModel):
     is_active: bool = Field(..., description="Активность отзыва")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProductList(BaseModel):
+    """
+    Список пагинации для товаров.
+    """
+    items: list[Product] = Field(description="Товары для текущей страницы")
+    total: int = Field(ge=0, description="Общее количество товаров")
+    page: int = Field(ge=1, description="Номер текущей страницы")
+    page_size: int = Field(ge=1, description="Количество элементов на странице")
+
+    model_config = ConfigDict(from_attributes=True)  # Для чтения из ORM-объектов
