@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from app.routers import cart, categories, orders, products, reviews, users
 
@@ -24,3 +25,7 @@ async def root():
     Корневой маршрут, подтверждающий, что API работает.
     """
     return {"message": "Добро пожаловать в API интернет-магазина!"}
+
+
+# Монтирование подприложения для обслуживания статических файлов
+app.mount("/media", StaticFiles(directory="media"), name="media")
